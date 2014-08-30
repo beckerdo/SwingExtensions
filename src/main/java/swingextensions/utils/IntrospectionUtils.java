@@ -1,0 +1,157 @@
+package swingextensions.utils;
+
+import java.io.PrintStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
+
+/**
+ * @author <a href="mailto:dan@danbecker.info">Dan Becker</a>
+ */
+public class IntrospectionUtils 
+{
+	public static void printGenericType(Class<?> classType, String anyFieldName) {
+   	        System.out.println("PrintGenericType:" );
+   	        try {
+		      // Field f = classType.getField(anyFieldName); // must be public
+		      Field f = classType.getDeclaredField(anyFieldName);
+		      System.out.format("Class: %s, Field: %s%n", classType.getName(), anyFieldName );
+		      System.out.format("   Type: %s%n", f.getType());
+		      System.out.format("   GenericType: %s%n", f.getGenericType());
+
+		      // production code should handle these exceptions more gracefully
+		    } catch (NoSuchFieldException x) {
+		      x.printStackTrace();
+		    }
+    }
+	
+	public static void printGenericSuperType(Class<?> classType) {
+          System.out.println("PrintGenericSuperType:" );
+	      System.out.format("Class: %s%n", classType.getName() );
+	      Type type = classType.getGenericSuperclass();
+	      System.out.format("   Type: %s%n", type);
+	      ParameterizedType pt = (ParameterizedType) type;
+	      System.out.format("   Parameterized Types: %s%n", pt );
+	      Type[] types = pt.getActualTypeArguments();
+	      for ( Type pType : types ) {
+		      System.out.format("   actual arg types: %s%n", pType );
+	      }
+	}
+	
+	public static void printTypeParams(Class<?> classType) {
+        System.out.println("PrintTypeParams:" );
+		System.out.println( "Class=" + classType.getName());
+		TypeVariable<?>[] typeVars = classType.getTypeParameters();
+		for  ( TypeVariable<?> typeVar : typeVars) {
+		   System.out.println( "   typeVar name=" + typeVar.getName());
+		   System.out.println( "   typeVar class=" + typeVar.getClass().getName() );
+		   System.out.println( "   typeVar generic dec=" + typeVar.getGenericDeclaration() );
+		   System.out.println( "   typeVar bounds=" + typeVar.getBounds() );
+		   Type [] bounds = typeVar.getBounds();
+		   for ( Type bound: bounds ) {
+			   System.out.println( "      typeVar bound=" + bound );
+			   System.out.println( "      typeVar name=" + bound.getClass());
+			   
+		   }
+		}
+
+	}
+	
+	  private final static PrintStream out = System.out;
+	  
+	  public static void printSuperclass(Type sup) {
+	    if (sup != null && !sup.equals(Object.class)) {
+	      out.print("extends ");
+	      printType(sup);
+	      out.println();
+	    }
+	  }
+	  public static void printInterfaces(Type[] impls) {
+	    if (impls != null && impls.length > 0) {
+	      out.print("implements ");
+	      int i = 0;
+	      for (Type impl : impls) {
+	        if (i++ > 0) out.print(",");
+	        printType(impl);
+	      }
+	      out.println();
+	    }
+	  }
+	  public static void printBounds(Type[] bounds) {
+	    if (bounds != null && bounds.length > 0
+	      && !(bounds.length == 1 && bounds[0] == Object.class)) {
+	      out.print(" extends ");
+	      int i = 0;
+	      for (Type bound : bounds) {
+	        if (i++ > 0) out.print("&");
+	        printType(bound);
+	      }
+	    }
+	  }
+	  public static void printParams(Type[] types) {
+	    if (types != null && types.length > 0) {
+	      out.print("<");
+	      int i = 0;
+	      for (Type type : types) {
+	        if (i++ > 0) out.print(",");
+	        printType(type);
+	      }
+	      out.print(">");
+	    }
+	  }
+	  public static void printType(Type type) {
+	    if (type instanceof Class) {
+	      Class<?> c = (Class<?>)type;
+	      out.print(c.getName());
+	    } else if (type instanceof ParameterizedType) {
+	      ParameterizedType p = (ParameterizedType)type;
+	      Class<?> c = (Class<?>) p.getRawType();
+	      Type o = p.getOwnerType();
+	      if (o != null) { printType(o); out.print("."); }
+	      out.print(c.getName());
+	      printParams(p.getActualTypeArguments());
+	    } else if (type instanceof TypeVariable<?>) {
+	      TypeVariable<?> v = (TypeVariable<?>)type;
+	      out.print(v.getName());
+	    } else if (type instanceof GenericArrayType) {
+	      GenericArrayType a = (GenericArrayType)type;
+	      printType(a.getGenericComponentType());
+	      out.print("[]");
+	    } else if (type instanceof WildcardType) {
+	      WildcardType w = (WildcardType)type;
+	      Type[] upper = w.getUpperBounds();
+	      Type[] lower = w.getLowerBounds();
+	      if (upper.length == 1 && lower.length == 0) {
+	        out.print("? extends ");
+	        printType(upper[0]);
+	      } else if (upper.length == 0 && lower.length == 1) {
+	        out.print("? super ");
+	        printType(lower[0]);
+	      } else throw new AssertionError();
+	    }
+	  }
+	  public static void printTypeParameters(TypeVariable<?>[] vars) {
+		    if (vars != null && vars.length > 0) {
+		      out.print("<");
+		      int i = 0;
+		      for (TypeVariable<?> var : vars) {
+		        if (i++ > 0) out.print(",");
+		        out.print(var.getName());
+		        // out.print(var.getGenericDeclaration());
+		        printBounds(var.getBounds());
+		      }
+		      out.print(">");
+		    }
+		  }
+	  public static void printClass(Class<?> c) {
+	    out.print("class ");
+	    out.print(c.getName());
+	    printTypeParameters(c.getTypeParameters());
+	    out.println();
+	    printSuperclass(c.getGenericSuperclass());
+	    printInterfaces(c.getGenericInterfaces());
+	  }	
+}
